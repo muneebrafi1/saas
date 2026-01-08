@@ -28,7 +28,7 @@ ENV RAILS_SERVE_STATIC_FILES=true
 ENV RAILS_LOG_TO_STDOUT=true
 
 # Install Gems
-COPY Gemfile Gemfile.lock ./
+COPY Gemfile Gemfile.lock .ruby-version ./
 RUN bundle config set --local without 'development test' && bundle install
 
 # Install Node dependencies
