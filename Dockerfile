@@ -24,7 +24,6 @@ RUN apt-get update -qq && apt-get install -y curl gnupg && \
 WORKDIR /app
 
 # 3. Set Environment Variables
-# Keep NODE_ENV=development initially so all packages install
 ENV RAILS_ENV=production
 ENV NODE_ENV=development 
 ENV RAILS_SERVE_STATIC_FILES=true
@@ -41,14 +40,17 @@ RUN npm install
 # 6. Copy application code
 COPY . .
 
-# 7. Precompile assets (WITH DUMMY VARIABLES)
-# We provide fake database info because Rails needs them to start the build tool
+# 7. Precompile assets (WITH ALL DUMMY VARIABLES)
+# We added DATABASE_PORT, REDIS_URL, and ELASTICSEARCH_URL to prevent future crashes
 RUN NODE_ENV=production \
     SECRET_KEY_BASE=dummy \
     DATABASE_NAME=dummy \
     DATABASE_USERNAME=dummy \
     DATABASE_PASSWORD=dummy \
     DATABASE_HOST=dummy \
+    DATABASE_PORT=3306 \
+    REDIS_URL=redis://dummy:6379/1 \
+    ELASTICSEARCH_URL=http://dummy:9200 \
     bundle exec rails assets:precompile
 
 # 8. Final Cleanup
