@@ -2,7 +2,6 @@
 FROM ruby:3.4.3-slim
 
 # 1. Install System Dependencies & Node.js 20
-# We use 'curl' to fetch the specific Node 20 source list first
 RUN apt-get update -qq && apt-get install -y curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y \
@@ -42,23 +41,19 @@ RUN npm install
 COPY . .
 
 # -----------------------------------------------------------------------------
-# THE "DEEP RESEARCH" FIX
-# This block completely bypasses the "KeyError" crashes by swapping the config 
-# files for dummy ones during the build process.
+# THE "BOOT HACK" (Solves the load-order issue)
+# We inject the bypass code directly into boot.rb so it loads FIRST.
 # -----------------------------------------------------------------------------
 RUN \
-    # A. Backup the strict database config
-    mv config/database.yml config/database.yml.bak && \
-    # B. Create a dummy database config that asks for NOTHING
-    echo "production:\n  adapter: mysql2\n  database: dummy\n  username: dummy\n  password: dummy\n  host: 127.0.0.1" > config/database.yml && \
-    # C. Create a 'Monkey Patch' that forces Rails to accept "dummy" for ANY missing key
-    echo 'module BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' > config/initializers/00_build_bypass.rb && \
-    # D. Run the build (It will now SUCCEED because we disabled the checks)
+    # A. Backup the original boot file
+    cp config/boot.rb config/boot.rb.bak && \
+    # B. Append the "Monkey Patch" to the END of boot.rb
+    # This forces Rails to return "dummy" for ANY missing variable (Memcache, Stripe, etc.)
+    echo '\nmodule BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' >> config/boot.rb && \
+    # C. Run the build (It will now SUCCEED because boot.rb intercepts the errors)
     NODE_ENV=production SECRET_KEY_BASE=dummy bundle exec rails assets:precompile && \
-    # E. Restore the original files so the app works when deployed
-    rm config/database.yml && \
-    mv config/database.yml.bak config/database.yml && \
-    rm config/initializers/00_build_bypass.rb
+    # D. Restore the original boot file so the app runs normally on deployment
+    mv config/boot.rb.bak config/boot.rb
 
 # -----------------------------------------------------------------------------
 
