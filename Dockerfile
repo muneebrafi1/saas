@@ -2,6 +2,7 @@
 FROM ruby:3.4.3-slim
 
 # 1. Install System Dependencies & Node.js 20
+# We use 'curl' to fetch the specific Node 20 source list first
 RUN apt-get update -qq && apt-get install -y curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y \
@@ -40,13 +41,26 @@ RUN npm install
 # 6. Copy application code
 COPY . .
 
-# 7. Precompile assets (THE MAGIC FIX)
-# We create a temporary "hacker" file that stops the app from crashing on missing keys
-RUN echo 'module BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' > config/initializers/build_hack.rb && \
-    NODE_ENV=production \
-    SECRET_KEY_BASE=dummy \
-    bundle exec rails assets:precompile && \
-    rm config/initializers/build_hack.rb
+# -----------------------------------------------------------------------------
+# THE "DEEP RESEARCH" FIX
+# This block completely bypasses the "KeyError" crashes by swapping the config 
+# files for dummy ones during the build process.
+# -----------------------------------------------------------------------------
+RUN \
+    # A. Backup the strict database config
+    mv config/database.yml config/database.yml.bak && \
+    # B. Create a dummy database config that asks for NOTHING
+    echo "production:\n  adapter: mysql2\n  database: dummy\n  username: dummy\n  password: dummy\n  host: 127.0.0.1" > config/database.yml && \
+    # C. Create a 'Monkey Patch' that forces Rails to accept "dummy" for ANY missing key
+    echo 'module BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' > config/initializers/00_build_bypass.rb && \
+    # D. Run the build (It will now SUCCEED because we disabled the checks)
+    NODE_ENV=production SECRET_KEY_BASE=dummy bundle exec rails assets:precompile && \
+    # E. Restore the original files so the app works when deployed
+    rm config/database.yml && \
+    mv config/database.yml.bak config/database.yml && \
+    rm config/initializers/00_build_bypass.rb
+
+# -----------------------------------------------------------------------------
 
 # 8. Final Cleanup
 ENV NODE_ENV=production
