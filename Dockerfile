@@ -40,8 +40,8 @@ RUN npm install
 # 6. Copy application code
 COPY . .
 
-# 7. Precompile assets (WITH ALL DUMMY VARIABLES)
-# We added DATABASE_PORT, REDIS_URL, and ELASTICSEARCH_URL to prevent future crashes
+# 7. Precompile assets (THE "NUCLEAR" FIX)
+# We define EVERY variable to prevent "KeyError" crashes during build
 RUN NODE_ENV=production \
     SECRET_KEY_BASE=dummy \
     DATABASE_NAME=dummy \
@@ -51,6 +51,13 @@ RUN NODE_ENV=production \
     DATABASE_PORT=3306 \
     REDIS_URL=redis://dummy:6379/1 \
     ELASTICSEARCH_URL=http://dummy:9200 \
+    MEMCACHE_SERVERS=dummy:11211 \
+    AWS_ACCESS_KEY_ID=dummy \
+    AWS_SECRET_ACCESS_KEY=dummy \
+    AWS_REGION=us-east-1 \
+    AWS_BUCKET=dummy \
+    STRIPE_PUBLISHABLE_KEY=dummy \
+    STRIPE_SECRET_KEY=dummy \
     bundle exec rails assets:precompile
 
 # 8. Final Cleanup
