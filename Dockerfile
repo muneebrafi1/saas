@@ -40,27 +40,13 @@ RUN npm install
 # 6. Copy application code
 COPY . .
 
-# 7. Precompile assets (WITH REVISION ADDED)
-# We added REVISION and others to the dummy list
-RUN NODE_ENV=production \
+# 7. Precompile assets (THE MAGIC FIX)
+# We create a temporary "hacker" file that stops the app from crashing on missing keys
+RUN echo 'module BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' > config/initializers/build_hack.rb && \
+    NODE_ENV=production \
     SECRET_KEY_BASE=dummy \
-    DATABASE_NAME=dummy \
-    DATABASE_USERNAME=dummy \
-    DATABASE_PASSWORD=dummy \
-    DATABASE_HOST=dummy \
-    DATABASE_PORT=3306 \
-    REDIS_URL=redis://dummy:6379/1 \
-    ELASTICSEARCH_URL=http://dummy:9200 \
-    MEMCACHE_SERVERS=dummy:11211 \
-    AWS_ACCESS_KEY_ID=dummy \
-    AWS_SECRET_ACCESS_KEY=dummy \
-    AWS_REGION=us-east-1 \
-    AWS_BUCKET=dummy \
-    STRIPE_PUBLISHABLE_KEY=dummy \
-    STRIPE_SECRET_KEY=dummy \
-    REVISION=dummy \
-    GIT_COMMIT=dummy \
-    bundle exec rails assets:precompile
+    bundle exec rails assets:precompile && \
+    rm config/initializers/build_hack.rb
 
 # 8. Final Cleanup
 ENV NODE_ENV=production
