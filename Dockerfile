@@ -40,8 +40,8 @@ RUN npm install
 # 6. Copy application code
 COPY . .
 
-# 7. Precompile assets (THE "NUCLEAR" FIX)
-# We define EVERY variable to prevent "KeyError" crashes during build
+# 7. Precompile assets (WITH REVISION ADDED)
+# We added REVISION and others to the dummy list
 RUN NODE_ENV=production \
     SECRET_KEY_BASE=dummy \
     DATABASE_NAME=dummy \
@@ -58,6 +58,8 @@ RUN NODE_ENV=production \
     AWS_BUCKET=dummy \
     STRIPE_PUBLISHABLE_KEY=dummy \
     STRIPE_SECRET_KEY=dummy \
+    REVISION=dummy \
+    GIT_COMMIT=dummy \
     bundle exec rails assets:precompile
 
 # 8. Final Cleanup
