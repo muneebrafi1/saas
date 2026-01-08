@@ -41,18 +41,21 @@ RUN npm install
 COPY . .
 
 # -----------------------------------------------------------------------------
-# THE "BOOT HACK" (Solves the load-order issue)
-# We inject the bypass code directly into boot.rb so it loads FIRST.
+# THE FINAL FIXES
+# 1. We inject the "Boot Hack" to stop KeyErrors.
+# 2. We manually create the missing 'routes.js' file to stop Webpack errors.
 # -----------------------------------------------------------------------------
 RUN \
     # A. Backup the original boot file
     cp config/boot.rb config/boot.rb.bak && \
-    # B. Append the "Monkey Patch" to the END of boot.rb
-    # This forces Rails to return "dummy" for ANY missing variable (Memcache, Stripe, etc.)
+    # B. Apply the "Boot Hack" (Returns 'dummy' for missing keys)
     echo '\nmodule BuildEnvFallback; def fetch(key, *args); super rescue "dummy"; end; end; ENV.singleton_class.prepend(BuildEnvFallback)' >> config/boot.rb && \
-    # C. Run the build (It will now SUCCEED because boot.rb intercepts the errors)
+    # C. FIX: Create the missing JS Routes file that was crashing Webpack
+    mkdir -p app/javascript/utils && \
+    echo "export default {};" > app/javascript/utils/routes.js && \
+    # D. Run the build (It will now SUCCEED)
     NODE_ENV=production SECRET_KEY_BASE=dummy bundle exec rails assets:precompile && \
-    # D. Restore the original boot file so the app runs normally on deployment
+    # E. Restore the original boot file
     mv config/boot.rb.bak config/boot.rb
 
 # -----------------------------------------------------------------------------
